@@ -2,31 +2,24 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import * as z from 'zod';
+import { registerSchema, type RegisterFormValues } from '@/features/auth/schemas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
-// Схема валидации с помощью Zod
-const formSchema = z.object({
-  fullName: z.string().min(2, { message: 'Имя должно быть не менее 2 символов' }),
-  email: z.email({ message: 'Введите корректный email' }),
-  password: z.string().min(6, { message: 'Пароль должен быть не менее 6 символов' }),
-});
-
 export function RegisterForm() {
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
     defaultValues: { fullName: '', email: '', password: '' },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: RegisterFormValues) {
     // ЗАГЛУШКА: Позже здесь будет вызов Server Action от коллеги
     console.log('Отправка данных:', values);
 

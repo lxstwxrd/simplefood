@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import * as z from 'zod';
+import { loginSchema, type LoginFormValues } from '@/features/auth/schemas';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -16,18 +16,13 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 
-const formSchema = z.object({
-  email: z.email({ message: 'Введите корректный email' }),
-  password: z.string().min(6, { message: 'Пароль должен быть не менее 6 символов' }),
-});
-
 export function LoginForm() {
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
     defaultValues: { email: '', password: '' },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: LoginFormValues) {
     // ЗАГЛУШКА: Позже здесь будет вызов Server Action от коллеги
     console.log('Отправка данных:', values);
 
