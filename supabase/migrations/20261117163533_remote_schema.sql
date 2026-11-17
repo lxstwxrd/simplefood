@@ -1,5 +1,3 @@
-drop extension if exists "pg_net";
-
 revoke delete on table "public"."categories" from "anon";
 
 revoke insert on table "public"."categories" from "anon";
@@ -855,5 +853,3 @@ using (((moderation_status = 'approved'::text) OR ( SELECT public.is_restaurant_
 
 
 CREATE TRIGGER trg_record_order_status_change AFTER INSERT OR UPDATE OF status ON public.orders FOR EACH ROW EXECUTE FUNCTION public.record_order_status_change();
-
-
