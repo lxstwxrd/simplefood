@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useState, useMemo, useTransition } from 'react';
 import { useTheme } from 'next-themes';
 import { User } from '@supabase/supabase-js';
+import { signOut } from '@/features/auth/actions';
 import { ShoppingCart, Moon, Sun, User as UserIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -39,8 +40,8 @@ const MENU: MenuItem[] = [
 
 export function Header() {
   const pathname = usePathname();
-  const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const [isSigningOut, startSignOut] = useTransition();
   const { setTheme, theme } = useTheme();
 
   const [user, setUser] = useState<User | null>(null);
@@ -60,10 +61,10 @@ export function Header() {
     return () => authListener.subscription.unsubscribe();
   }, [supabase.auth]);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.refresh();
-    router.push('/');
+  const handleSignOut = () => {
+    startSignOut(async () => {
+      await signOut();
+    });
   };
 
   return (
@@ -154,8 +155,12 @@ export function Header() {
 
                 <DropdownMenuSeparator />
 
-                <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
-                  Выйти
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  disabled={isSigningOut}
+                  className="text-red-600"
+                >
+                  {isSigningOut ? 'Выход...' : 'Выйти'}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -170,11 +175,3 @@ export function Header() {
     </header>
   );
 }
-
-// Перегруз. Сейчас хэдер исполняет: навигацию, переключение темы, отображение корзины, проверку авторизации,
-// подписку на Auth-события, выход из аккаунта, отображение меню пользователя.
-// Дополнительно сейчас: createClient() вызывается в теле компонента. Лучше обеспечить стабильный экземпляр Browser Client; getUser() не обрабатывает ошибку();
-// signOut() игнорирует возможную ошибку; авторизация дополнительно проверяется в браузере, хотя сессию уже обслуживает серверная инфраструктура;
-// мобильная навигация пока отсутствует. Исправить. Для выхода использовать существующий Server Action signOut, чтобы не дублировать механизм выхода.
-// Будущие сценарии хэдэра для отличных пользователей(общие будут доступны всем): guest - войти, регистрация; customer - корзина, профиль, заказы;
-// restourant - панель ресторана; courier - панель курьера; admin - панель админа; Важно: доступ проверяется на сервере!

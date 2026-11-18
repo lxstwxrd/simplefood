@@ -1,19 +1,10 @@
+import { Suspense } from 'react';
 import { LoginForm } from './LoginForm';
-import Link from 'next/link';
 
 export default function LoginPage() {
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold text-center">Вход в аккаунт</h1>
+    <Suspense fallback={<div className="container py-10">Загрузка...</div>}>
       <LoginForm />
-      <p className="text-center text-sm text-muted-foreground">
-        Нет аккаунта?{' '}
-        <Link href="/register" className="text-primary hover:underline">
-          Зарегистрироваться
-        </Link>
-      </p>
-    </div>
+    </Suspense>
   );
 }
-
-// Композиция страницы входа. В будущем может включать также восстановление пароля, OAuth-вход и доп. инфо-блоки

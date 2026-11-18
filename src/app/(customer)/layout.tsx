@@ -1,4 +1,4 @@
-export default function Layout({
+export default async function CustomerLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;

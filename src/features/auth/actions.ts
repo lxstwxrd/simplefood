@@ -1,66 +1,107 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-
+import { loginSchema, registerSchema } from '@/features/auth/schemas';
 import { createClient } from '@/lib/supabase/server';
 
-type ActionResult = {
+export type AuthActionState = {
   error: string | null;
+  success: string | null;
 };
 
-export async function signUp(formData: FormData): Promise<ActionResult> {
-  const email = formData.get('email');
-  const password = formData.get('password');
-  const fullName = formData.get('full_name');
+export async function signUp(
+  _prevState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  const parsed = registerSchema.safeParse({
+    fullName: formData.get('fullName'),
+    email: formData.get('email'),
+    password: formData.get('password'),
+  });
 
-  if (
-    typeof email !== 'string' ||
-    typeof password !== 'string' ||
-    typeof fullName !== 'string' ||
-    !email.trim() ||
-    !password ||
-    !fullName.trim()
-  ) {
-    return { error: 'Пожалуйста, заполните все поля.' };
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? 'Проверьте введённые данные',
+      success: null,
+    };
   }
 
+  const { fullName, email, password } = parsed.data;
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signUp({
-    email: email.trim(),
+  const { data, error } = await supabase.auth.signUp({
+    email,
     password,
     options: {
       data: {
-        full_name: fullName.trim(),
+        full_name: fullName,
       },
     },
   });
 
   if (error) {
-    // TODO: use error.code for i18n
-    return { error: error.message };
+    if (error.code === 'user_already_exists') {
+      return {
+        error: 'Пользователь с таким email уже зарегистрирован',
+        success: null,
+      };
+    }
+
+    return {
+      error: 'Не удалось зарегистрироваться. Попробуйте позже.',
+      success: null,
+    };
+  }
+
+  if (!data.session) {
+    return {
+      error: null,
+      success: 'Аккаунт создан. Проверьте почту для подтверждения регистрации.',
+    };
   }
 
   redirect('/');
 }
 
-export async function signIn(formData: FormData): Promise<ActionResult> {
-  const email = formData.get('email');
-  const password = formData.get('password');
+export async function signIn(
+  _prevState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  const parsed = loginSchema.safeParse({
+    email: formData.get('email'),
+    password: formData.get('password'),
+  });
 
-  if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password) {
-    return { error: 'Пожалуйста введите Ваш email и пароль.' };
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? 'Проверьте введённые данные',
+      success: null,
+    };
   }
 
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email: email.trim(),
-    password,
-  });
+  const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
-    return { error: error.message };
+    return {
+      error:
+        error.code === 'invalid_credentials'
+          ? 'Неверный email или пароль'
+          : 'Не удалось войти. Попробуйте позже.',
+      success: null,
+    };
+  }
+
+  const returnTo = formData.get('returnTo');
+
+  if (
+    typeof returnTo === 'string' &&
+    returnTo.startsWith('/') &&
+    !returnTo.startsWith('//') &&
+    !returnTo.includes('\\')
+  ) {
+    redirect(returnTo);
   }
 
   redirect('/');
@@ -72,19 +113,8 @@ export async function signOut(): Promise<void> {
   const { error } = await supabase.auth.signOut();
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error('Не удалось выйти из аккаунта');
   }
 
   redirect('/');
 }
-
-// Серверные действия для авторизации. Сейчас реализованы signUp() - регистрация, signIn() - вход, signOut() - выход.
-// Нюансы: 1) Валидация - сейчас проверяются типы и пустые значения. Этого недостаточно для полноценной серверной валидации,
-// нужно использовать общие Zod-схемы и повторно проверять данные на сервере.
-// 2) Обработка ошибок - сейчас возвращается error.message от Supabase. Для пользовательского интерфейса нужно предусмотреть
-// контролируемые коды ошибок и преобразовать их в понятные сообщения.
-// 3) Регистрация - после signUp() вызывается редирект('/'), но при включенном подтверждении email регистрация не обязательно обозначает, что
-// пользователь уже получил активную сессию. Нужно отдельно обработать сценарий подтверждения почты.
-// 4) Безопасность - Server Actions не следует считать автоматически доверенным только потому, что они выполняются на сервере.
-// Каждое действие должно самостоятельно проверять: входные данные; текущего пользователя; права пользователя; доступность запрашиваемого ресурса;
-// В будушем: здесь или в отдельных фичах появятся: восстановление пароля; подтвержение емаил; обновление профиля; OAuth; дополнительные сценарии Auth(хз крч, подумаем+соглавуем)

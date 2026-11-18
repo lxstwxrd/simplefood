@@ -21,4 +21,4 @@ export const loginSchema = z.object({
 export type RegisterFormValues = z.infer<typeof registerSchema>;
 export type LoginFormValues = z.infer<typeof loginSchema>;
 
-//единые правила проверки входных данных
+//единые правила проверки входных данных. Оставить, не менять.

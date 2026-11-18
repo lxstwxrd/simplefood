@@ -1,40 +1,24 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { loginSchema, type LoginFormValues } from '@/features/auth/schemas';
+import { useActionState } from 'react';
+import { useSearchParams } from 'next/navigation';
+
+import { signIn, type AuthActionState } from '@/features/auth/actions';
 import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
+
+const initialState: AuthActionState = {
+  error: null,
+  success: null,
+};
 
 export function LoginForm() {
-  const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
-  });
+  const [state, formAction, isPending] = useActionState(signIn, initialState);
 
-  async function onSubmit(values: LoginFormValues) {
-    // ЗАГЛУШКА: Позже здесь будет вызов Server Action от коллеги
-    console.log('Отправка данных:', values);
-
-    toast.promise(
-      new Promise((resolve) => setTimeout(resolve, 1000)), // Имитация запроса
-      {
-        loading: 'Вход в систему...',
-        success: () => 'Успешный вход! (Это пока заглушка)',
-        error: 'Ошибка входа',
-      }
-    );
-  }
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
 
   return (
     <Card>
@@ -42,46 +26,46 @@ export function LoginForm() {
         <CardTitle>С возвращением</CardTitle>
         <CardDescription>Введите свои данные для входа</CardDescription>
       </CardHeader>
+
       <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
+        <form action={formAction} className="space-y-4">
+          <input type="hidden" name="returnTo" value={returnTo ?? ''} />
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
               name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="mail@example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              type="email"
+              placeholder="mail@example.com"
+              autoComplete="email"
+              required
             />
-            <FormField
-              control={form.control}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">Пароль</Label>
+            <Input
+              id="password"
               name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Пароль</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              type="password"
+              placeholder="Введите пароль"
+              autoComplete="current-password"
+              required
             />
-            <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Загрузка...' : 'Войти'}
-            </Button>
-          </form>
-        </Form>
+          </div>
+
+          {state.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {state.error}
+            </p>
+          )}
+
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? 'Входим...' : 'Войти'}
+          </Button>
+        </form>
       </CardContent>
     </Card>
   );
 }
-
-// Клиентская форма авторизации. Инструменты оставить. В первую очередь удалить имитацию запроса и подключить существующий signIn из фичей/ауф/акшонс,
-// также необходимо отображать серверные ошибки, согласовать систему валидации на клиенте и сервере и добавить корректную отработку состояния отправки.
-// В будущем здесь появятся сценарии: Вход по емаил и паролю; неверные учётные данные; неподтверждённый емаил(всё же лучше подтверждать емаил, чтобы пользователю приходил чек на корректный адрес,
-// снимаем этим с себя ответственность); также восстановление пароля; перенаправление после авторизации на главную страницу.
